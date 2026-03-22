@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phantom Redzone</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body, html { height:100%; font-family:sans-serif; color:#fff; overflow-x:hidden; }
+
+.video-bg { position: fixed; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:-1; filter:brightness(0.45); }
+
+#topLogo { position:fixed; top:10px; left:20px; width:120px; cursor:pointer; display:none; z-index:11; }
+
+#startScreen { position: fixed; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; }
+#startScreen img { width:220px; max-width:70vw; margin-bottom:30px; }
+#startScreen h1 { font-size:2.5rem; margin-bottom:40px; text-shadow:0 0 15px #ffcc00; }
+.categoryButtons { display:flex; gap:25px; flex-wrap:wrap; justify-content:center; }
+.catBtn { background: rgba(255,204,0,0.85); color:#111; padding:18px 30px; border-radius:12px; font-weight:700; cursor:pointer; font-size:1.25rem; min-width:140px; text-align:center; transition:0.3s; }
+.catBtn:hover { background:#ffdd33; }
+
+#mainWrapper { display:none; height:100vh; flex-direction:row; }
+#sideMenu { width:220px; background:rgba(20,20,20,0.85); padding:100px 15px 20px 15px; display:flex; flex-direction:column; gap:15px; }
+#sideMenu a { color:#ddd; text-decoration:none; padding:12px 15px; border-radius:6px; font-weight:600; cursor:pointer; transition:0.2s; }
+#sideMenu a:hover, #sideMenu a.active { background:#ffcc00; color:#111; }
+
+#contentArea { flex:1; padding:40px 30px; overflow-y:auto; background:rgba(0,0,0,0.7); position:relative; }
+
+.bigCards { display:flex; gap:25px; flex-wrap:wrap; justify-content:center; margin-bottom:40px; }
+.card { background: rgba(30,30,30,0.9); border-radius:12px; min-width:150px; max-width:180px; cursor:pointer; padding:25px 15px; display:flex; flex-direction:column; align-items:center; text-align:center; transition:0.25s; }
+.card:hover { background:#ffcc00; color:#111; transform:scale(1.05); }
+.card strong { font-size:1.2rem; }
+h2 { margin-bottom:25px; font-size:2rem; text-align:center; }
+p, ul { margin-bottom:15px; line-height:1.4; }
+ul { list-style:disc inside; }
+#paymentDetails { background:rgba(40,40,40,0.95); border-radius:12px; padding:20px 25px; max-width:600px; margin:0 auto; font-size:1rem; line-height:1.5; }
+#paymentDetails ul { list-style:none; padding-left:0; }
+#paymentDetails ul li::before { content:"・"; margin-right:8px; color:#ffcc00; font-weight:900; }
+
+@media(max-width:800px){
+  #mainWrapper { flex-direction:column; }
+  #sideMenu { width:100%; flex-direction:row; overflow-x:auto; gap:10px; padding:100px 10px 20px 10px; }
+  #sideMenu a { flex:1 0 auto; text-align:center; padding:10px 5px; font-size:0.9rem; }
+  #contentArea { padding:20px; height:70vh; }
+  .bigCards { gap:15px; }
+}
+</style>
+</head>
+<body>
+
+<video class="video-bg" autoplay muted loop playsinline>
+  <source src="bg.mp4" type="video/mp4">
+  Vaš pretraživač ne podržava video.
+</video>
+
+<img id="topLogo" src="logo.png" alt="Logo">
+
+<div id="startScreen">
+  <img src="logo.png" alt="Phantom Redzone logo" />
+  <h1>Dobro došli na PHANTOM REDZONE</h1>
+  <div class="categoryButtons">
+    <div class="catBtn" data-cat="donacijeMain">Donacije</div>
+    <div class="catBtn" data-cat="partnership">Partnership</div>
+    <div class="catBtn" data-cat="modifikacija">Modifikacija auta</div>
+    <div class="catBtn" data-cat="onama">O nama</div>
+  </div>
+</div>
+
+<div id="mainWrapper">
+  <nav id="sideMenu">
+    <a href="#" data-section="donacijeMain">Donacije</a>
+    <a href="#" data-section="partnership">Partnership</a>
+    <a href="#" data-section="modifikacija">Modifikacija auta</a>
+    <a href="#" data-section="onama">O nama</a>
+  </nav>
+  <main id="contentArea" tabindex="0"></main>
+</div>
+
+<script>
+const startScreen = document.getElementById('startScreen');
+const mainWrapper = document.getElementById('mainWrapper');
+const contentArea = document.getElementById('contentArea');
+const topLogo = document.getElementById('topLogo');
+
+let navStack = [];
+
+const data = {
+  donacijeMain: {
+    title:"Donacije - kategorije",
+    cards:[
+      {name:"Organizacija", sub:"don_org"},
+      {name:"Dobrovoljno", sub:"don_dobrovoljno"},
+      {name:"Priority", sub:"don_priority"},
+      {name:"Ostalo", sub:"don_ostalo"}
+    ]
+  },
+  don_org: {
+    title:"Organizacija",
+    cards:[
+      {name:"10€ Base Pack", pay:true, desc:"Organizacija sa sefom i basom, nije custom niti mesto."},
+      {name:"15€ Custom", pay:true, desc:"Organizacija custom sa custom lokacijom."},
+      {name:"20€ Full Custom", pay:true, desc:"Organizacija sa custom bazom i custom lokacijom."}
+    ]
+  },
+  don_dobrovoljno: {
+    title:"Dobrovoljno",
+    cards:[
+      {name:"10-50€", pay:true, desc:"Donacija u rasponu 10-50€."},
+      {name:"50-100€", pay:true, desc:"Donacija u rasponu 50-100€."},
+      {name:"100+€", pay:true, desc:"Donacija preko 100€."}
+    ]
+  },
+  don_priority: {
+    title:"Priority",
+    cards:[
+      {name:"Lvl 10", pay:true, desc:"Priority Level 10"},
+      {name:"Lvl 30", pay:true, desc:"Priority Level 30"},
+      {name:"Lvl 50", pay:true, desc:"Priority Level 50"}
+    ]
+  },
+  don_ostalo: {
+    title:"Ostalo",
+    cards:[
+      {name:"Custom Auto", pay:true, desc:"Modifikacija automobila po želji."},
+      {name:"Pun sef", pay:true, desc:"Pun sef oružja za vašu organizaciju."},
+      {name:"VIP", pay:true, desc:"VIP status sa posebnim privilegijama."}
+    ]
+  },
+  partnership: { title:"Partnership", text:"ZA PARTHNERSHIP SE MOŽETE JAVITI NA NAŠ DISCORD SERVER I OTVORITI TICKET ZA DALJE DOGOVORE" },
+  modifikacija: { title:"Modifikacija auta", text:"IMATE AUTO I ŽELITE GA MODIFIKOVATI KAO ŠTO SU BUMP, GLIDE, SPEED I TAKO DALJE SAMO OTVORITE TICKET NA NAŠEM DISCORD SERVERU" },
+  onama: { title:"O nama", text:"MI SMO NOVI REDZONE NA BALKANU SA UNIKATNIM SKRIPTAMA ZA KOJE SE I SAMI MOŽETE UVJERITI I POGLEDATI. MNOGO TRUDA JE UTROŠENO NAŠ SERVER KAKO BI IGRAČI IMALI ŠTO BOLJE ISKUSTVO I DA MI IMAMO ŠTO BOLJU PRIČU. SVAKO KO MOŽE DA NAS PODRŽI KAKO SA DONACIJAMA TAKO I SA INVAJTANJA LJUDI NA NAŠ DISCORD SERVER NA KOJEM STE VEĆ PRETPOSTAVLJAMO. HVALA UNAPRIJED SVIMA KOJI SU NAS PODRŽALI PA I ONI ŠTO SU UŠLI SAMO NA NAŠ DISCORD SERVER." }
+};
+
+function showSection(key){
+  contentArea.innerHTML = '';
+  navStack.push(key);
+  topLogo.style.display = 'block';
+
+  const sec = data[key];
+  if(!sec) return;
+
+  const h2 = document.createElement('h2');
+  h2.textContent = sec.title;
+  contentArea.appendChild(h2);
+
+  if(sec.cards){
+    const container = document.createElement('div');
+    container.className='bigCards';
+    sec.cards.forEach(c=>{
+      const div = document.createElement('div');
+      div.className='card';
+      div.innerHTML = `<strong>${c.name}</strong>`;
+      div.addEventListener('click', ()=>{
+        if(c.pay){ showPayment(c); }
+        else if(c.sub){ showSection(c.sub); }
+      });
+      container.appendChild(div);
+    });
+    contentArea.appendChild(container);
+  }
+
+  if(sec.text){
+    const p = document.createElement('p');
+    p.textContent = sec.text;
+    contentArea.appendChild(p);
+  }
+}
+
+function showPayment(card){
+  contentArea.innerHTML = '';
+  navStack.push('payment');
+
+  const h2 = document.createElement('h2'); h2.textContent = card.name; contentArea.appendChild(h2);
+  const div = document.createElement('div'); div.id='paymentDetails';
+  div.innerHTML = `<p>${card.desc}</p>
+    <p><strong>Načini plaćanja:</strong></p>
+    <ul>
+      <li>MasterCard</li>
+      <li>AirCash</li>
+      <li>Steam Gift Card</li>
+      <li>CS Skin</li>
+    </ul>
+    <p>Za plaćanje otvorite ticket na našem Discord-u.</p>`;
+  contentArea.appendChild(div);
+}
+
+// Start ekran dugmad
+document.querySelectorAll('.catBtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    startScreen.style.display='none';
+    mainWrapper.style.display='flex';
+    showSection(btn.dataset.cat);
+  });
+});
+
+// Lev meni
+document.querySelectorAll('#sideMenu a').forEach(a=>{
+  a.addEventListener('click', e=>{
+    e.preventDefault();
+    showSection(a.dataset.section);
+  });
+});
+
+// Top logo klik vraća na start ekran
+topLogo.addEventListener('click', ()=>{
+  mainWrapper.style.display='none';
+  startScreen.style.display='flex';
+  topLogo.style.display='none';
+  navStack = [];
+});
+</script>
+</body>
+</html>
